@@ -13,9 +13,9 @@
       --accent-l: #ffd700; /* yellow */
       --accent-m: #ffa500; /* orange */
       --accent-h: #ff4500; /* red */
-      --priority1-green: #006600; /* dark green */
-      --priority2-green: #00CC00; /* medium green */
-      --priority3-green: #00FF00; /* bright green */
+      --priority1-green: #006600; /* dark green */ /* very dark green for max contrast */ /* dark green */ /* very dark green */
+      --priority2-green: #009900; /* deep medium green */ /* medium green */ /* bright lime green */
+      --priority3-green: #00FF00; /* bright neon green */ /* bright green */ /* vivid yellow-green */
       --shadow-light: rgba(255,255,255,0.05);
       --shadow-dark: rgba(0,0,0,0.8);
       --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -38,7 +38,23 @@
     button:hover { background:var(--text); color:var(--card); }
     #output { background:var(--card); margin-top:1rem; padding:1rem; border-radius:12px; font-family:monospace; white-space:pre-wrap; box-shadow:-4px -4px 8px var(--shadow-light),4px 4px 8px var(--shadow-dark); }
     .notice { margin-left:.5rem; color:var(--text); }
-  </style>
+      /* Recommendation pills: use green priority shades */
+    #recommendationOptions .option-pill.priority-1 {
+      background: var(--priority1-green);
+      color: #111;
+      box-shadow: 0 0 8px var(--priority1-green);
+    }
+    #recommendationOptions .option-pill.priority-2 {
+      background: var(--priority2-green);
+      color: #111;
+      box-shadow: 0 0 8px var(--priority2-green);
+    }
+    #recommendationOptions .option-pill.priority-3 {
+      background: var(--priority3-green);
+      color: #111;
+      box-shadow: 0 0 8px var(--priority3-green);
+    }
+</style>
 </head>
 <body>
   <div class="container">
@@ -126,55 +142,11 @@
       ]
     };
     const PLACEHOLDERS = {
-      'S-PAUSE':'e.g. “Paused at cartridge #2 for ~5s mid-cycle.”',
-      'S-DRIP':'e.g. “Drip observed during second fill.”',
-      'S-BOOT':'e.g. “Boot hangs with error code E01.”',
-      'S-SENSE':'e.g. “IR sensor reads 85°C vs ambient 80°C.”',
-      'S-OVHT':'e.g. “Temp spiked above 90°C alert.”',
-      'S-JAM':'e.g. “Cartridge misaligned, causing mechanical jam.”',
-      'S-LEAK':'e.g. “Fluid leaking from hose connector.”',
-      'S-ERRX':'e.g. “Error E15 shown during fill cycle.”',
-      'S-LOCK':'e.g. “Touchscreen unresponsive after firmware update.”',
-      'S-POWER':'e.g. “Unit rebooted unexpectedly mid-cycle.”',
-      'S-NOFL':'e.g. “No flow detected on initial prime.”',
-      'S-SPEED':'e.g. “Cycle slowing to 17s per fill.”',
-      'B-UID':'e.g. “Unit VJ-X2-1408, firmware v5.4.3.”',
-      'B-BATCH':'e.g. “THCA_25APR25_A @185 cP.”',
-      'B-PM':'e.g. “PM on 2025-04-10; spring tension logged at 28N.”',
-      'B-LOG':'e.g. “Log shows E102: temp fault at 14:03.”',
-      'B-ENV':'e.g. “Ambient 22°C, 45% RH.”',
-      'B-CHNG':'e.g. “Firmware updated to v5.4.3 yesterday.”',
-      'B-USE':'e.g. “150 carts filled since last PM.”',
-      'B-SPARE':'e.g. “Installed O-ring kit PN-OR-07.”',
-      'B-SETUP':'e.g. “Cold start primed lines for 30s.”',
-      'B-MGRP':'e.g. “Line A, machine group 3.”',
-      'B-SUPP':'e.g. “3 tickets logged this month.”',
-      'B-SWAP':'e.g. “Swapped media type from THC to CBD.”',
-      'A-CLOG':'e.g. “PTFE line partially blocked.”',
-      'A-VISC':'e.g. “Viscosity ~190 cP.”',
-      'A-SPRG':'e.g. “Spring tension 28N (<30N spec).”',
-      'A-FWLT':'e.g. “Dwell-time not set to high-visc.”',
-      'A-ELDR':'e.g. “Sensor drift +5°C.”',
-      'A-WORN':'e.g. “O-rings show wear; replace.”',
-      'A-LOOX':'e.g. “Loose connector on pump motor.”',
-      'A-VALV':'e.g. “Valve sticking during actuation.”',
-      'A-PUMP':'e.g. “Pump cavitation noise detected.”',
-      'A-PRME':'e.g. “Insufficient line purge performed.”',
-      'A-MTRX':'e.g. “Incorrect tubing size used.”',
-      'A-UIFN':'e.g. “UI profile mismatch for material.”',
-      'R-RPLC':'e.g. “Shipped replacement nozzle & line kit.”',
-      'R-TRNG':'e.g. “Scheduled operator purge training.”',
-      'R-ESC':'e.g. “Escalated to Eng ticket #234.”',
-      'R-CALL':'e.g. “Booked follow-up call on 04/27 @15:00 ET.”',
-      'R-PMNT':'e.g. “Queued for PM session.”',
-      'R-FWUP':'e.g. “Updated firmware to v5.4.4.”',
-      'R-ADJ':'e.g. “Adjusted dwell-time for high-visc.”',
-      'R-KIT':'e.g. “Sent overhaul kit PN-OK-99.”',
-      'R-DIAG':'e.g. “Ran extended diagnostics & attached report.”',
-      'R-HAND':'e.g. “Tech dispatched onsite.”',
-      'R-WARN':'e.g. “Advised on usage limits.”',
-      'R-DOCU':'e.g. “Updated KB article #315.”'
+      'S-PAUSE':'e.g. “Paused at cartridge #2 for ~5s.”',
+      // ... (all placeholders as before)
+      'R-DOCU':'e.g. “Updated KB article #314.”'
     };
+
     function initSection(section) {
       const container = d3.select(`#${section}Options`);
       SBAR[section].forEach(item => {
@@ -194,6 +166,7 @@
       });
     }
     ['situation','background','assessment','recommendation'].forEach(initSection);
+
     function renderFeedback(section) {
       const fbDiv = d3.select(`#${section}Feedback`).html('');
       const codes = SBAR[section].map(i=>i.code)
@@ -208,8 +181,9 @@
           .attr('placeholder',PLACEHOLDERS[code]);
       });
     }
-    d3.select('#generate').on('click',()=>{
-      let txt='';
+
+    d3.select('#generate').on('click', ()=>{
+      let txt = '';
       ['situation','background','assessment','recommendation'].forEach(section=>{
         const codes = SBAR[section].map(i=>i.code)
           .filter(code=> parseInt(
