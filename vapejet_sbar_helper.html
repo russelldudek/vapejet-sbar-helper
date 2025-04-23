@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vape-Jet SBAR Support Note Helper</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg: #111;
+      --card: #1e1e1e;
+      --text: #eee;
+      --accent-l: #ffd700; /* yellow */
+      --accent-m: #ffa500; /* orange */
+      --accent-h: #ff4500; /* red */
+      --priority1-green: #006600; /* dark green */
+      --priority2-green: #00CC00; /* medium green */
+      --priority3-green: #00FF00; /* bright green */
+      --shadow-light: rgba(255,255,255,0.05);
+      --shadow-dark: rgba(0,0,0,0.8);
+      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:var(--font); display:flex; justify-content:center; padding:2rem; }
+    .container { background:var(--card); padding:2rem; border-radius:16px; box-shadow:-8px -8px 16px var(--shadow-light),8px 8px 16px var(--shadow-dark); width:100%; max-width:800px; }
+    h1 { text-align:center; color:var(--text); margin-bottom:1rem; }
+    p { text-align:center; margin-bottom:1rem; }
+    fieldset { border:none; margin-top:1.5rem; }
+    legend { color:var(--text); font-weight:bold; margin-bottom:.5rem; display:block; }
+    .options { display:flex; flex-wrap:wrap; gap:8px; }
+    .option-pill { padding:.5rem 1rem; border-radius:12px; background:var(--card); color:var(--text); cursor:pointer; box-shadow:inset -4px -4px 8px var(--shadow-light), inset 4px 4px 8px var(--shadow-dark); transition:box-shadow .2s, background .2s; }
+    .option-pill.priority-1 { background: var(--accent-l); color:#111; box-shadow:0 0 8px var(--accent-l); }
+    .option-pill.priority-2 { background: var(--accent-m); color:#111; box-shadow:0 0 8px var(--accent-m); }
+    .option-pill.priority-3 { background: var(--accent-h); color:#111; box-shadow:0 0 8px var(--accent-h); }
+    .feedback-group { margin-top:.5rem; }
+    .feedback-group textarea { width:100%; padding:.5rem; border-radius:8px; border:none; background:var(--card); color:var(--text); box-shadow:inset -2px -2px 4px var(--shadow-light), inset 2px 2px 4px var(--shadow-dark); resize:vertical; }
+    button { width:100%; margin-top:2rem; padding:1rem; border:none; border-radius:12px; background:var(--card); color:var(--text); font-weight:bold; cursor:pointer; box-shadow:-4px -4px 8px var(--shadow-light),4px 4px 8px var(--shadow-dark); transition:background .2s, color .2s; }
+    button:hover { background:var(--text); color:var(--card); }
+    #output { background:var(--card); margin-top:1rem; padding:1rem; border-radius:12px; font-family:monospace; white-space:pre-wrap; box-shadow:-4px -4px 8px var(--shadow-light),4px 4px 8px var(--shadow-dark); }
+    .notice { margin-left:.5rem; color:var(--text); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vape-Jet SBAR Note Helper</h1>
+    <p>Click pill to cycle priority: Low → Med → High → Off. Add feedback and generate notes.</p>
+
+    <fieldset><legend>S: Situation</legend>
+      <div id="situationOptions" class="options"></div>
+      <div id="situationFeedback"></div>
+    </fieldset>
+    <fieldset><legend>B: Background</legend>
+      <div id="backgroundOptions" class="options"></div>
+      <div id="backgroundFeedback"></div>
+    </fieldset>
+    <fieldset><legend>A: Assessment</legend>
+      <div id="assessmentOptions" class="options"></div>
+      <div id="assessmentFeedback"></div>
+    </fieldset>
+    <fieldset><legend>R: Recommendation</legend>
+      <div id="recommendationOptions" class="options"></div>
+      <div id="recommendationFeedback"></div>
+    </fieldset>
+
+    <button id="generate">Generate & Copy Notes</button><span class="notice" id="notice"></span>
+    <pre id="output"></pre>
+  </div>
+
+  <script>
+    const SBAR = {
+      situation: [
+        {code:'S-PAUSE',desc:'Unexpected pause between fills'},
+        {code:'S-DRIP',desc:'Drip or leakage during cycle'},
+        {code:'S-BOOT',desc:'Failed start-up or boot error'},
+        {code:'S-SENSE',desc:'Sensor misread/calibration alert'},
+        {code:'S-OVHT',desc:'Overheat alarm / temperature spike'},
+        {code:'S-JAM',desc:'Mechanical jam or cartridge misalignment'},
+        {code:'S-LEAK',desc:'External fluid leak (hose, connectors)'},
+        {code:'S-ERRX',desc:'Error code X displayed on panel'},
+        {code:'S-LOCK',desc:'UI/UX lock-up or unresponsive screen'},
+        {code:'S-POWER',desc:'Power cycling or unexpected shutdown'},
+        {code:'S-NOFL',desc:'No flow detected on prime or initial fill'},
+        {code:'S-SPEED',desc:'Fill speed too slow or too fast'}
+      ],
+      background: [
+        {code:'B-UID',desc:'Unit ID & firmware (e.g. “VJ-X2-1408, v5.4.3”)'},
+        {code:'B-BATCH',desc:'Batch & material specs (e.g. “THCA_25APR25_A @185 cP”)'},
+        {code:'B-PM',desc:'Last PM date / spring-tension check logs'},
+        {code:'B-LOG',desc:'Historical error codes/logs (e.g. E102 temperature fault)'},
+        {code:'B-ENV',desc:'Environmental conditions (temp, humidity)'},
+        {code:'B-CHNG',desc:'Recent config change or firmware update'},
+        {code:'B-USE',desc:'Usage volume/cart count since last maintenance'},
+        {code:'B-SPARE',desc:'Spare-parts installed (e.g. nozzle type, o-ring set)'},
+        {code:'B-SETUP',desc:'Initial setup notes (e.g. cold start, priming steps)'},
+        {code:'B-MGRP',desc:'Machine group or line ID (for high-volume sites)'},
+        {code:'B-SUPP',desc:'Support history: past tickets count for this unit'},
+        {code:'B-SWAP',desc:'Cartridge/media type swap notes'}
+      ],
+      assessment: [
+        {code:'A-CLOG',desc:'Line obstruction or trapped air'},
+        {code:'A-VISC',desc:'Viscosity mismatch impacting flow'},
+        {code:'A-SPRG',desc:'Spring tension below spec'},
+        {code:'A-FWLT',desc:'Firmware dwell-time/profile misalignment'},
+        {code:'A-ELDR',desc:'Electrical sensor drift or miscalibration'},
+        {code:'A-WORN',desc:'Wear-and-tear on mechanical parts (e.g. O-rings)'},
+        {code:'A-LOOX',desc:'Loose or faulty electrical connection'},
+        {code:'A-VALV',desc:'Valve or solenoid sticking'},
+        {code:'A-PUMP',desc:'Pump cavitation or seal failure'},
+        {code:'A-PRME',desc:'Insufficient purge or priming'},
+        {code:'A-MTRX',desc:'Incorrect pump matrix or tubing size'},
+        {code:'A-UIFN',desc:'UI/UX profile not matching material'}
+      ],
+      recommendation: [
+        {code:'R-RPLC',desc:'Ship replacement parts (nozzle, fill-line kit)'},
+        {code:'R-TRNG',desc:'Schedule operator training or walkthrough'},
+        {code:'R-ESC',desc:'Escalate to Engineering team'},
+        {code:'R-CALL',desc:'Log or schedule follow-up call with customer'},
+        {code:'R-PMNT',desc:'Add unit to Preventive Maintenance queue'},
+        {code:'R-FWUP',desc:'Update firmware or rollback version'},
+        {code:'R-ADJ',desc:'Adjust machine parameters (dwell-time, speed)'},
+        {code:'R-KIT',desc:'Send full overhaul kit (springs, seals, filters)'},
+        {code:'R-DIAG',desc:'Run extended diagnostics / data capture'},
+        {code:'R-HAND',desc:'Hand-deliver tech onsite for support'},
+        {code:'R-WARN',desc:'Issue customer warning on usage limits'},
+        {code:'R-DOCU',desc:'Update KB, manuals, or quick-ref guides'}
+      ]
+    };
+    const PLACEHOLDERS = {
+      'S-PAUSE':'e.g. “Paused at cartridge #2 for ~5s mid-cycle.”',
+      'S-DRIP':'e.g. “Drip observed during second fill.”',
+      'S-BOOT':'e.g. “Boot hangs with error code E01.”',
+      'S-SENSE':'e.g. “IR sensor reads 85°C vs ambient 80°C.”',
+      'S-OVHT':'e.g. “Temp spiked above 90°C alert.”',
+      'S-JAM':'e.g. “Cartridge misaligned, causing mechanical jam.”',
+      'S-LEAK':'e.g. “Fluid leaking from hose connector.”',
+      'S-ERRX':'e.g. “Error E15 shown during fill cycle.”',
+      'S-LOCK':'e.g. “Touchscreen unresponsive after firmware update.”',
+      'S-POWER':'e.g. “Unit rebooted unexpectedly mid-cycle.”',
+      'S-NOFL':'e.g. “No flow detected on initial prime.”',
+      'S-SPEED':'e.g. “Cycle slowing to 17s per fill.”',
+      'B-UID':'e.g. “Unit VJ-X2-1408, firmware v5.4.3.”',
+      'B-BATCH':'e.g. “THCA_25APR25_A @185 cP.”',
+      'B-PM':'e.g. “PM on 2025-04-10; spring tension logged at 28N.”',
+      'B-LOG':'e.g. “Log shows E102: temp fault at 14:03.”',
+      'B-ENV':'e.g. “Ambient 22°C, 45% RH.”',
+      'B-CHNG':'e.g. “Firmware updated to v5.4.3 yesterday.”',
+      'B-USE':'e.g. “150 carts filled since last PM.”',
+      'B-SPARE':'e.g. “Installed O-ring kit PN-OR-07.”',
+      'B-SETUP':'e.g. “Cold start primed lines for 30s.”',
+      'B-MGRP':'e.g. “Line A, machine group 3.”',
+      'B-SUPP':'e.g. “3 tickets logged this month.”',
+      'B-SWAP':'e.g. “Swapped media type from THC to CBD.”',
+      'A-CLOG':'e.g. “PTFE line partially blocked.”',
+      'A-VISC':'e.g. “Viscosity ~190 cP.”',
+      'A-SPRG':'e.g. “Spring tension 28N (<30N spec).”',
+      'A-FWLT':'e.g. “Dwell-time not set to high-visc.”',
+      'A-ELDR':'e.g. “Sensor drift +5°C.”',
+      'A-WORN':'e.g. “O-rings show wear; replace.”',
+      'A-LOOX':'e.g. “Loose connector on pump motor.”',
+      'A-VALV':'e.g. “Valve sticking during actuation.”',
+      'A-PUMP':'e.g. “Pump cavitation noise detected.”',
+      'A-PRME':'e.g. “Insufficient line purge performed.”',
+      'A-MTRX':'e.g. “Incorrect tubing size used.”',
+      'A-UIFN':'e.g. “UI profile mismatch for material.”',
+      'R-RPLC':'e.g. “Shipped replacement nozzle & line kit.”',
+      'R-TRNG':'e.g. “Scheduled operator purge training.”',
+      'R-ESC':'e.g. “Escalated to Eng ticket #234.”',
+      'R-CALL':'e.g. “Booked follow-up call on 04/27 @15:00 ET.”',
+      'R-PMNT':'e.g. “Queued for PM session.”',
+      'R-FWUP':'e.g. “Updated firmware to v5.4.4.”',
+      'R-ADJ':'e.g. “Adjusted dwell-time for high-visc.”',
+      'R-KIT':'e.g. “Sent overhaul kit PN-OK-99.”',
+      'R-DIAG':'e.g. “Ran extended diagnostics & attached report.”',
+      'R-HAND':'e.g. “Tech dispatched onsite.”',
+      'R-WARN':'e.g. “Advised on usage limits.”',
+      'R-DOCU':'e.g. “Updated KB article #315.”'
+    };
+    function initSection(section) {
+      const container = d3.select(`#${section}Options`);
+      SBAR[section].forEach(item => {
+        const pill = container.append('div')
+          .attr('class','option-pill priority-0')
+          .attr('data-code',item.code)
+          .attr('data-priority',0)
+          .text(item.code+' – '+item.desc)
+          .on('click', function() {
+            let p = parseInt(this.getAttribute('data-priority'));
+            p = (p + 1) % 4;
+            this.setAttribute('data-priority', p);
+            this.classList.remove('priority-0','priority-1','priority-2','priority-3');
+            this.classList.add('priority-'+p);
+            renderFeedback(section);
+          });
+      });
+    }
+    ['situation','background','assessment','recommendation'].forEach(initSection);
+    function renderFeedback(section) {
+      const fbDiv = d3.select(`#${section}Feedback`).html('');
+      const codes = SBAR[section].map(i=>i.code)
+        .filter(code=> parseInt(
+          d3.select(`[data-code='${code}']`).attr('data-priority'))>0);
+      codes.forEach(code => {
+        const group = fbDiv.append('div').attr('class','feedback-group');
+        group.append('label').text(code+' feedback');
+        group.append('textarea')
+          .attr('id',`${section}_fb_${code}`)
+          .attr('rows',2)
+          .attr('placeholder',PLACEHOLDERS[code]);
+      });
+    }
+    d3.select('#generate').on('click',()=>{
+      let txt='';
+      ['situation','background','assessment','recommendation'].forEach(section=>{
+        const codes = SBAR[section].map(i=>i.code)
+          .filter(code=> parseInt(
+            d3.select(`[data-code='${code}']`).attr('data-priority'))>0);
+        if(codes.length) {
+          const parts = codes.map(code => {
+            const p = parseInt(
+              d3.select(`[data-code='${code}']`).attr('data-priority'));
+            const abbr = {1:'L',2:'M',3:'H'}[p];
+            return `${code} (${abbr})`;
+          });
+          txt += section.toUpperCase()+': '+parts.join(', ')+'\n';
+          codes.forEach(code=>{
+            const fb = d3.select(`#${section}_fb_${code}`).node()?.value||'';
+            txt+=`${code} feedback: ${fb}\n`;
+          });
+          txt+='\n';
+        }
+      });
+      d3.select('#output').text(txt);
+      navigator.clipboard.writeText(txt).then(()=>{
+        d3.select('#notice').text('Copied!'); setTimeout(()=>d3.select('#notice').text(''),2000);
+      });
+    });
+  </script>
+</body>
+</html>
